@@ -1,0 +1,304 @@
+---
+title: Multinomial Regression
+author: Michal Ondras
+date: '2017-11-22'
+slug: multinomial-regression
+categories:
+  - R
+tags: []
+---
+
+## Setup
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 10000)
+options(warn=1)
+```
+
+### Load packages
+```{r load-packages, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+#library(MASS)
+library(gtools)
+library(vcd)
+library(VGAM)
+```
+
+### Load data
+```{r load, echo=FALSE}
+setwd("/Users/michalondras/education/coursera/inferential-statistics/final\ project/")
+load("gss.Rdata")
+```
+
+```{r decades}
+# creates new grouping variable decade 
+gss$decade = ifelse(gss$year<1980, '70s', 
+                    ifelse(gss$year<1990 & gss$year>1979, '80s', 
+                           ifelse(gss$year<2000 & gss$year>1989, '90s', 
+                                  ifelse(gss$year<2010 & gss$year>1999, 
+                                         '00s', '10s'))))
+```
+
+```{r contigency}
+source("http://pcwww.liv.ac.uk/~william/R/crosstab.r")
+
+# creates contigency tables for decades 
+contigency_table = function(temp){
+  temp_table = crosstab(temp, row.vars = "degree", 
+                     col.vars = c("sex", "natenvir"), 
+                     addmargins = F)
+  return(temp_table)
+}
+
+decade = function(temp, ct){
+  # decades of interest
+  decades = c("70s", "80s", "90s", "00s", "10s")
+  
+  # list of contigency tables 
+  data.list = list()
+  for (index in decades){
+    data.list[[index]] = ct(temp[temp$decade == index, ])
+  }
+  return(data.list)
+}
+  
+decades = decade(gss, contigency_table)
+```
+
+#### Categorical Data of Interest
+The categorical variables of interest are:
+
++ Nominal (`sex`)
+    + Male or Female
++ Ordinal (`degree`)
+    + Little High School, High School, Junior College, Bachelors, and Graduate
++ Ordinal (`natenvir`)
+    + Too Little, About Right, and Too Much
+
+**Which of these variables are explanatory or response variables?** Sex should be an explanatory variable. It should be pretty consistent among the decades.  A contigency table of the proportions of males and females surveyed per decade is displayed below. 
+```{r epa}
+crosstab(gss, row.vars = "decade", col.vars = "sex", type='r')
+```
+**Are these proportions changing with time?** The Marascuillo procedure can be used to compare pairwise differences between the decades.  A pair proportion difference is statistically significant if its value exceeds the critical range value. Here, we state that the following hypoteses:
+
++ $H_o$: there is no difference between the pairwise proportion differences
++ $H_a$: there is a difference between the pairwise proportion differences
+
+The critical range will be $\chi^2$ statistic of 9.49 (0.95 CI, degrees of freedom = 4). 
+
+```{r marascuillo}
+# TODO shiny data.table with highlighted values
+gender = crosstab(gss, row.vars = "decade", col.vars = "sex", type='f')
+
+marascuillo_procedure = function(p){
+  n = length(p[, c(1)]) - 1
+  prop = p[,1][1:n]/p[,2][1:n]
+  names = row.names(p)
+  N = length(prop)
+  value = critical.range = compare= c()
+  
+  ## Compute critical values.
+  for (i in 1:(N-1))
+     { for (j in (i+1):N)
+      {
+       value = c(value,(abs(prop[i]-prop[j])))
+       critical.range = c(critical.range,
+        sqrt(qchisq(.95,4))*sqrt(prop[i]*(1-prop[i])/p[i,2] + prop[j]*(1-prop[j])/p[j,2]))
+        compare = c(compare, paste(names[i], names[j], sep = '-'))
+      }
+     }
+  return(data.frame(values = round(value, 3),
+                    critical = round(critical.range,3), 
+                    comparison = compare))
+}  
+
+marascuillo_procedure(gender$table[, c(1,3)])
+```
+The statistically significant differences are these pairwise comparisions: 80s and 00s; 70s and 80s; and 70s and 90s.  My decade demarcation will need a little tweaking.  Looking at year-by-year proportion differences, I see that the years 1972, 73, and 84, when compared to other years, are statistically different. 
+
+```{r year-by-year}
+# list of year contigency tables 
+gender.yr = crosstab(gss, row.vars = "year", col.vars = "sex", type='f')
+gender.prop.yr = marascuillo_procedure(gender.yr$table[, c(1,3)])
+gender.prop.yr[gender.prop.yr$values > gender.prop.yr$critical, ]
+```
+**What if I were to elminate them?** Eliminating those years,  I see that there are no pairwise decade-by-decade differences in proportions that are significant.  
+
+```{r decade-by-decade}
+gender = crosstab(gss[gss$year > 1973 & gss$year != 1984,], 
+                  row.vars = "decade", col.vars = "sex", type='f')
+marascuillo_procedure(gender$table[, c(1,3)])
+```
+
+Sex will be my explanatory variable. 
+
+#### Ordinal Data
+The categorical variables degree and natenvir have a natural order from least to greatest elements.   Statistical techniques exist for assessing the strength of an association for ordinal data.   
+
+```{r ordinize}
+ordinize = function(temp){
+  # ordinizes variables for contigency tables
+  table = data.frame(temp)
+  table$degRk = ifelse(table$degree == "Lt High School", 1, 
+                     ifelse(table$degree == "High School", 2, 
+                            ifelse(table$degree == "Junior College", 3, 
+                                   ifelse(table$degree == "Bachelor", 4, 5))))
+  table$envRk = ifelse(table$natenvir == "Too Little", 3, 
+                     ifelse(table$natenvir == "About Right", 2, 1))
+ return(table) 
+} 
+
+decades.df = decade(gss[gss$year > 1973 & gss$year != 1984,], 
+                 contigency_table)
+
+for (index in c("70s", "80s", "90s", "00s", "10s")){
+  decades.df[[index]] = ordinize(decades[[index]]$table)
+}
+```
+
+#### Multinomial Logistic Regression
+Logistic regression can be used to predict a binomial output such as "Sucess" or "Failure." Multinomial logistic regression can be used when the output is multinomial such as our natenvir variable or degree variable.  
+
+
+
+First I will establish my baseline for comparisions.  What are my baselines? Here, my baseline will be "Lt High School" for degree and "About Right" for natenvir.  My three probabilities will be:
+
+```{r baseline}
+spreads = function(temp){
+  temp_i = subset(temp, ,-c(degRk, envRk))
+  result = temp_i %>%
+        spread(natenvir, Freq)
+  return(result)
+}
+
+seventies = spreads(decades.df$`70s`)
+
+# degree "Lt High School" baseline
+contrasts(seventies$degree) = contr.treatment(levels(seventies$degree), base = 1)
+contrasts(seventies$degree)
+# sex male baseline
+contrasts(seventies$sex) = contr.treatment(levels(seventies$sex), base = 1)
+contrasts(seventies$sex)
+
+```
+
+My three probabilities will be:
+
++ $\pi_1 = $ probability of "About Right"
++ $\pi_2 = $ probability of "Too Little"
++ $\pi_3 = $ probability of "Too Much"
+
+```{r multinomial_regression}
+seventies
+fit0 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~1, seventies, family=multinomial)
+fit1 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~sex, seventies, family=multinomial)
+fit2 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~degree, seventies, family=multinomial)
+fit3 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~degree + sex, seventies, family=multinomial)
+fit4 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~degree + sex +degree*sex, seventies, family=multinomial)
+
+data.frame(model = c("Null", "sex", "degree", "degree + sex", "degree + sex + sex*degree"),
+            deviance = round(c(deviance(fit0), 
+                        deviance(fit1),
+                        deviance(fit2),
+                        deviance(fit3),
+                        deviance(fit4)),3),
+           dof = c(df.residual(fit0),
+                   df.residual(fit1),
+                   df.residual(fit2),
+                   df.residual(fit3),
+                   df.residual(fit4)),
+           "G2/df" = round(c(deviance(fit0)/df.residual(fit0),
+                     deviance(fit0)/df.residual(fit1),
+                     deviance(fit0)/df.residual(fit2),
+                     deviance(fit0)/df.residual(fit3),
+                     deviance(fit0)/df.residual(fit4)),3))
+
+```
+
+The 2 models that I have here are "Too Little" versus "About Right" and "Too Much" versus "About Right". None of these models is stellar. There are other models that account for ordinality and I explore those now.  
+
+### Adjacent-Categories Logit 
+```{r adjacent-cat}
+fit0 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~1, seventies, family=acat(reverse=T, parallel=T))
+fit1 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~sex, seventies, family=acat(reverse=T, parallel=T))
+fit2 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~degree, seventies, family=acat(reverse=T, parallel=T))
+fit3 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~degree + sex, seventies, family=acat(reverse=T, parallel=T))
+fit4 = vglm(cbind(`Too Little`, `Too Much`, `About Right`)~degree + sex +degree*sex, seventies, family=acat(reverse=T, parallel=T))
+
+data.frame(model = c("Null", "sex", "degree", "degree + sex", "degree + sex + sex*degree"),
+            deviance = round(c(deviance(fit0), 
+                        deviance(fit1),
+                        deviance(fit2),
+                        deviance(fit3),
+                        deviance(fit4)),3),
+           dof = c(df.residual(fit0),
+                   df.residual(fit1),
+                   df.residual(fit2),
+                   df.residual(fit3),
+                   df.residual(fit4)),
+           "G2/df" = round(c(deviance(fit0)/df.residual(fit0),
+                     deviance(fit0)/df.residual(fit1),
+                     deviance(fit0)/df.residual(fit2),
+                     deviance(fit0)/df.residual(fit3),
+                     deviance(fit0)/df.residual(fit4)),3))
+```
+These models are not good either. 
+
+### Cumulative Logit 
+```{r cumulative}
+fit0 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~1, seventies, family=cumulative(parallel = T))
+fit1 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~sex, seventies, family=cumulative(parallel = T))
+fit2 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~degree, seventies, family=cumulative(parallel = T))
+fit3 = vglm(cbind(`Too Much`, `About Right`, `Too Little`)~degree + sex, seventies, family=cumulative(parallel = T))
+fit4 = vglm(cbind(`Too Little`, `Too Much`, `About Right`)~degree + sex +degree*sex, seventies, family=cumulative(parallel = T))
+
+data.frame(model = c("Null", "sex", "degree", "degree + sex", "degree + sex + sex*degree"),
+            deviance = round(c(deviance(fit0), 
+                        deviance(fit1),
+                        deviance(fit2),
+                        deviance(fit3),
+                        deviance(fit4)),3),
+           dof = c(df.residual(fit0),
+                   df.residual(fit1),
+                   df.residual(fit2),
+                   df.residual(fit3),
+                   df.residual(fit4)),
+           "G2/df" = round(c(deviance(fit0)/df.residual(fit0),
+                     deviance(fit0)/df.residual(fit1),
+                     deviance(fit0)/df.residual(fit2),
+                     deviance(fit0)/df.residual(fit3),
+                     deviance(fit0)/df.residual(fit4)),3))
+```
+
+### Ordered Logistic Regression
+
+```{r ordered}
+#spreads2 = function(temp){
+#  temp_i = subset(temp, ,-c(natenvir, degree))
+#  result = temp_i %>%
+#        spread(envRk, Freq)
+#  return(result)
+#}
+
+#seventies2 = spreads2(decades.df$`70s`)
+#seventies2$degRk = factor(seventies2$degRk, ordered=T)
+#seventies2
+
+
+#seventies3 = subset(decades.df$`70s`, , -c(degRk, natenvir))
+#seventies3$degRk = factor(seventies3$degRk, ordered=T)
+#seventies3$envRk = factor(seventies3$envRk, ordered=T)
+
+#library(MASS)
+
+#results = polr(envRk ~ degree + sex, weights=Freq, data=seventies3, Hess=T)
+#summary(results)
+#deviance(results)/df.residual(results)
+```
+
+
+1. NIST: _Comparing multiple proportions: The Marascuillo procedure_, 
+http://www.itl.nist.gov/div898/handbook/prc/section4/prc474.htm
+
+

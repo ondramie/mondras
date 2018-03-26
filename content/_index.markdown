@@ -1,0 +1,11 @@
+---
+title: Home
+---
+
+[<img src="https://simpleicons.org/icons/github.svg" style="max-width:15%;min-width:40px;float:right;" alt="Github repo" />](https://github.com/yihui/hugo-xmin)
+
+# Michal Ondras
+
+## _A lot of blogs exist on the internet. Some of them are good._
+
+This exists to showcase data science musings. 
