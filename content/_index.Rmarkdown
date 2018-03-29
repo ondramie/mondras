@@ -6,6 +6,6 @@ title: Home
 
 # Michal Ondras
 
-## _A lot of blogs exist on the internet. Some of them are good._
+## _A lot of blogs exist on the internet. Some of them are useful._
 
 This exists to showcase data science musings. 
