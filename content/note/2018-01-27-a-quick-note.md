@@ -1,6 +1,6 @@
 ---
 title: A Quick Note
-author: Michal Ondras
+author: 
 date: '2018-03-28'
 categories:
   - R
