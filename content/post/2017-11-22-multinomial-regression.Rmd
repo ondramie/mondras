@@ -19,7 +19,6 @@ options(warn=1)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
-#library(MASS)
 library(gtools)
 library(vcd)
 library(VGAM)
@@ -159,8 +158,6 @@ for (index in c("70s", "80s", "90s", "00s", "10s")){
 
 #### Multinomial Logistic Regression
 Logistic regression can be used to predict a binomial output such as "Sucess" or "Failure." Multinomial logistic regression can be used when the output is multinomial such as our natenvir variable or degree variable.  
-
-
 
 First I will establish my baseline for comparisions.  What are my baselines? Here, my baseline will be "Lt High School" for degree and "About Right" for natenvir.  My three probabilities will be:
 

@@ -1,0 +1,82 @@
+---
+title: A Small Note on Box-Cox Transformations
+author: Michal Ondras
+date: '2018-03-29'
+slug: box-cox-transformations
+categories:
+  - R
+tags: []
+---
+
+## What is it? 
+
+The Box-Cox procedure performs a data transformation or a regression transformation.  Here, I am only interested in talking about the regression transform, not the data transform.  There are several ways to represent the transform[^1], based on the original distribution of the data, but in generalities, it looks like: 
+
+`$$Y(\lambda) = \Bigg\{\begin{array} 1\frac{Y^{\lambda}-1}{\lambda} & \text{if } \lambda \ne 0 \\ \log(Y) & \text{if } \lambda = 0 \end{array}$$`
+
+Here, `$Y$` is a random variable, the response variable.  Yes, it's one sided and a transform is not performed on the explanatory variables.  The assumption is that `$Y^k$` behaves with a normal distribution. Therefore, the multivariate density of `$Y^k$` is expressed:
+
+`$$ f_{Y^{\lambda}} = \frac{\exp(-\frac{1}{2}(y^{\lambda} - \mu_y)^T(\Sigma^{-1}) (y^{\lambda} - \mu_y))}{\sqrt{(2\pi)^k | \Sigma |}}
+$$`
+
+The assumption is constant variance, so `$\Sigma = \sigma^2 I$`. Note `$k$` is equal to the index.  To get the density of `$Y$`, the method of transformations (no relation to Box-Cox transformation) is used where the Jacobian is multiplied by the density function of `$Y^{\lambda}$`
+
+`$$ f_Y = \frac{\exp(-\frac{1}{2}(y^{\lambda} - \mu_y)^T(\Sigma^{-1}) (y^{\lambda} - \mu_y))}{\sqrt{(2\pi)^k | \Sigma |}} \prod_i^k y^{\lambda-1}
+$$`
+
+Taking the log, 
+
+`$$ \log(f_Y) = \log\Bigg(\frac{\big(\exp(-\frac{1}{2}(y^{\lambda} - \mu_y)^T(\Sigma^{-1}) (y^{\lambda} - \mu_y))}{\sqrt{(2\pi)^k | \Sigma |}} \prod_i^k y^{\lambda-1} \Bigg)
+$$`
+
+`$$ \log(f_Y) = -\frac{1}{2}(y^{\lambda} - \mu_y)^T(\Sigma^{-1}) (y^{\lambda} - \mu_y) - \frac{k}{2} \log(2\pi \Sigma) + (\lambda-1)\sum_i^k y_i
+$$`
+
+The estimates of `$\mu_y, \sigma^2$`, and `$\lambda$` are done by theoretically taking partials of each. In reality, the estimates can be solved for numerically. Choosing which numerical method is a whole other conversation.      
+
+
+## Example
+
+The data are housing prices from the AER library. We have one response "price" and eleven predictors. Some of predictors are factors. The box-cox procedure produces:
+
+```{r, housing, message=FALSE, echo=FALSE}
+library(AER)
+data(HousePrices)
+fit = lm(price ~ ., data = HousePrices)
+#summary(fit)
+
+library(MASS)
+fit2 = boxcox(fit, xlab=expression(lambda))
+fit2 = data.frame(fit2)
+
+library(car)
+alphahat = fit2[which.max(fit2$y),]$x
+
+alphahat
+
+fit3 = lm(bcPower(price, alphahat) ~ ., data = HousePrices)
+#summary(fit3)
+#AIC(fit)
+#AIC(fit3)
+#
+#
+#
+```
+Based on likelihood profile plot above, the estimate for lambda is `$0.1414$`. Now, I will check whether the transformation produced a better model. 
+
+```{r, residuals, message=FALSE, echo=FALSE}
+par(mfrow=c(1,2))
+plot(rstudent(fit))
+plot(rstudent(fit3))
+
+qqnorm(rstudent(fit))
+qqline(rstudent(fit))
+qqnorm(rstudent(fit3))
+qqline(rstudent(fit3))
+```
+
+A plot of the residuals look better and so does the normal plot.
+
+#### References
+
+[^1]: http://avesbiodiv.mncn.csic.es/estadistica/curso2011/boxcox.pdf
