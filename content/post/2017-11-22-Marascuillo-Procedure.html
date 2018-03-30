@@ -1,0 +1,168 @@
+---
+title: Marascuillo Procedure
+author: Michal Ondras
+date: '2017-11-22'
+slug: Marascuillo Procedure
+categories:
+  - R
+tags: []
+---
+
+
+
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<div id="load-packages" class="section level3">
+<h3>Load packages</h3>
+</div>
+<div id="load-data" class="section level3">
+<h3>Load data</h3>
+<pre class="r"><code># creates new grouping variable decade 
+gss$decade = ifelse(gss$year&lt;1980, &#39;70s&#39;, 
+                    ifelse(gss$year&lt;1990 &amp; gss$year&gt;1979, &#39;80s&#39;, 
+                           ifelse(gss$year&lt;2000 &amp; gss$year&gt;1989, &#39;90s&#39;, 
+                                  ifelse(gss$year&lt;2010 &amp; gss$year&gt;1999, 
+                                         &#39;00s&#39;, &#39;10s&#39;))))</code></pre>
+<pre class="r"><code>source(&quot;http://pcwww.liv.ac.uk/~william/R/crosstab.r&quot;)
+
+# creates contigency tables for decades 
+contigency_table = function(temp){
+  temp_table = crosstab(temp, row.vars = &quot;degree&quot;, 
+                     col.vars = c(&quot;sex&quot;, &quot;natenvir&quot;), 
+                     addmargins = F)
+  return(temp_table)
+}
+
+decade = function(temp, ct){
+  # decades of interest
+  decades = c(&quot;70s&quot;, &quot;80s&quot;, &quot;90s&quot;, &quot;00s&quot;, &quot;10s&quot;)
+  
+  # list of contigency tables 
+  data.list = list()
+  for (index in decades){
+    data.list[[index]] = ct(temp[temp$decade == index, ])
+  }
+  return(data.list)
+}
+  
+decades = decade(gss, contigency_table)</code></pre>
+<div id="categorical-data-of-interest" class="section level4">
+<h4>Categorical Data of Interest</h4>
+<p>The categorical variables of interest are:</p>
+<ul>
+<li>Nominal (<code>sex</code>)
+<ul>
+<li>Male or Female</li>
+</ul></li>
+<li>Ordinal (<code>degree</code>)
+<ul>
+<li>Little High School, High School, Junior College, Bachelors, and Graduate</li>
+</ul></li>
+<li>Ordinal (<code>natenvir</code>)
+<ul>
+<li>Too Little, About Right, and Too Much</li>
+</ul></li>
+</ul>
+<p><strong>Which of these variables are explanatory or response variables?</strong> Sex should be an explanatory variable. It should be pretty consistent among the decades. A contigency table of the proportions of males and females surveyed per decade is displayed below.</p>
+<pre class="r"><code>crosstab(gss, row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;r&#39;)</code></pre>
+<pre><code>##        sex   Male Female    Sum
+## decade                         
+## 00s         44.68  55.32 100.00
+## 10s         44.23  55.77 100.00
+## 70s         45.76  54.24 100.00
+## 80s         42.78  57.22 100.00
+## 90s         43.35  56.65 100.00</code></pre>
+<p><strong>Are these proportions changing with time?</strong> The Marascuillo procedure can be used to compare pairwise differences between the decades. A pair proportion difference is statistically significant if its value exceeds the critical range value. Here, we state that the following hypotheses:</p>
+<ul>
+<li><span class="math inline">\(H_o\)</span>: there is no difference between the pairwise proportion differences</li>
+<li><span class="math inline">\(H_a\)</span>: there is a difference between the pairwise proportion differences</li>
+</ul>
+<p>The critical range will be <span class="math inline">\(\chi^2\)</span> statistic of 9.49 (0.95 CI, degrees of freedom = 4).</p>
+<pre class="r"><code># TODO shiny data.table with highlighted values
+gender = crosstab(gss, row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
+
+marascuillo_procedure = function(p){
+  n = length(p[, c(1)]) - 1
+  prop = p[,1][1:n]/p[,2][1:n]
+  names = row.names(p)
+  N = length(prop)
+  value = critical.range = compare= c()
+  
+  ## Compute critical values.
+  for (i in 1:(N-1))
+     { for (j in (i+1):N)
+      {
+       value = c(value,(abs(prop[i]-prop[j])))
+       critical.range = c(critical.range,
+        sqrt(qchisq(.95,4))*sqrt(prop[i]*(1-prop[i])/p[i,2] + prop[j]*(1-prop[j])/p[j,2]))
+        compare = c(compare, paste(names[i], names[j], sep = &#39;-&#39;))
+      }
+     }
+  return(data.frame(values = round(value, 3),
+                    critical = round(critical.range,3), 
+                    comparison = compare))
+}  
+
+marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
+<pre><code>##    values critical comparison
+## 1   0.005    0.027    00s-10s
+## 2   0.011    0.019    00s-70s
+## 3   0.019    0.018    00s-80s
+## 4   0.013    0.018    00s-90s
+## 5   0.015    0.028    10s-70s
+## 6   0.014    0.027    10s-80s
+## 7   0.009    0.028    10s-90s
+## 8   0.030    0.020    70s-80s
+## 9   0.024    0.020    70s-90s
+## 10  0.006    0.018    80s-90s</code></pre>
+<p>The statistically significant differences are these pairwise comparisions: 80s and 00s; 70s and 80s; and 70s and 90s. My decade demarcation will need a little tweaking. Looking at year-by-year proportion differences, I see that the years 1972, 73, and 84, when compared to other years, are statistically different.</p>
+<pre class="r"><code># list of year contigency tables 
+gender.yr = crosstab(gss, row.vars = &quot;year&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
+gender.prop.yr = marascuillo_procedure(gender.yr$table[, c(1,3)])
+gender.prop.yr[gender.prop.yr$values &gt; gender.prop.yr$critical, ]</code></pre>
+<pre><code>##     values critical comparison
+## 6    0.081    0.055  1972-1978
+## 7    0.064    0.055  1972-1980
+## 8    0.081    0.052  1972-1982
+## 9    0.069    0.054  1972-1983
+## 10   0.094    0.055  1972-1984
+## 12   0.078    0.055  1972-1986
+## 13   0.073    0.052  1972-1987
+## 14   0.070    0.055  1972-1988
+## 15   0.071    0.055  1972-1989
+## 16   0.060    0.056  1972-1990
+## 17   0.081    0.055  1972-1991
+## 18   0.074    0.054  1972-1993
+## 19   0.069    0.047  1972-1994
+## 20   0.058    0.048  1972-1996
+## 21   0.065    0.048  1972-1998
+## 22   0.064    0.048  1972-2000
+## 23   0.056    0.048  1972-2002
+## 25   0.056    0.045  1972-2006
+## 27   0.064    0.051  1972-2010
+## 37   0.060    0.056  1973-1984
+## 63   0.060    0.056  1974-1984
+## 251  0.054    0.052  1984-2008</code></pre>
+<p><strong>What if I were to elminate them?</strong> Eliminating those years, I see that there are no pairwise decade-by-decade differences in proportions that are significant.</p>
+<pre class="r"><code>gender = crosstab(gss[gss$year &gt; 1973 &amp; gss$year != 1984,], 
+                  row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
+marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
+<pre><code>##    values critical comparison
+## 1   0.005    0.027    00s-10s
+## 2   0.000    0.022    00s-70s
+## 3   0.016    0.018    00s-80s
+## 4   0.013    0.018    00s-90s
+## 5   0.004    0.030    10s-70s
+## 6   0.012    0.028    10s-80s
+## 7   0.009    0.028    10s-90s
+## 8   0.016    0.022    70s-80s
+## 9   0.013    0.022    70s-90s
+## 10  0.003    0.019    80s-90s</code></pre>
+<p>Gender could be an explanatory variable.</p>
+<ol style="list-style-type: decimal">
+<li>NIST: <em>Comparing multiple proportions: The Marascuillo procedure</em>,
+<a href="http://www.itl.nist.gov/div898/handbook/prc/section4/prc474.htm" class="uri">http://www.itl.nist.gov/div898/handbook/prc/section4/prc474.htm</a></li>
+</ol>
+</div>
+</div>
+</div>
