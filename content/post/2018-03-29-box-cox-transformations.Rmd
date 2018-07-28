@@ -4,8 +4,8 @@ author:
 date: '2018-03-29'
 slug: box-cox-transformations
 categories:
-  - R
-tags: []
+  - box-cox
+tags: [R, box-cox]
 ---
 
 ## What is it? 
@@ -68,7 +68,7 @@ fit3 = lm(bcPower(price, alphahat) ~ ., data = HousePrices)
 #
 #
 ```
-Based on likelihood profile plot above, the estimate for lambda is `$0.1414$`. Now, I will check whether the transformation produced a better model. 
+Based on likelihood profile plot above, the estimate for lambda is `$0.1414$`. Now, I will check visually whether the transformation produced a better model. 
 
 ```{r, residuals, message=FALSE, echo=FALSE}
 par(mfrow=c(1,2))
@@ -81,8 +81,4 @@ qqnorm(rstudent(fit3))
 qqline(rstudent(fit3))
 ```
 
-A plot of the residuals look better and so does the normal plot.
-
-#### References
-
-[^1]: http://avesbiodiv.mncn.csic.es/estadistica/curso2011/boxcox.pdf
+A plot of the residuals look better and so does the normal plot. 

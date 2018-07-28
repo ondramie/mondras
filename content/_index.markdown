@@ -8,4 +8,4 @@ title: Home
 
 ## _A lot of blogs exist on the internet. Some of them are useful._
 
-This exists to showcase data science musings. 
+This exists to showcase data science. 

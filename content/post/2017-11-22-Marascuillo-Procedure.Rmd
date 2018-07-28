@@ -4,11 +4,13 @@ author:
 date: '2017-11-22'
 slug: Marascuillo Procedure
 categories:
-  - R
-tags: []
+  - Marascuillo Procedure
+tags: [R, Marascuillo]
 ---
 
-## Setup
+## Preface
+I attempt to determine which variables are explanatory and response for data set of all categorical variables. 
+
 ```{r set-options, echo=FALSE, cache=FALSE}
 options(width = 10000)
 options(warn=1)
@@ -24,7 +26,7 @@ setwd("/Users/michalondras/education/coursera/inferential-statistics/final\ proj
 load("gss.Rdata")
 ```
 
-```{r decades}
+```{r decades, echo=FALSE}
 # creates new grouping variable decade 
 gss$decade = ifelse(gss$year<1980, '70s', 
                     ifelse(gss$year<1990 & gss$year>1979, '80s', 
@@ -33,7 +35,7 @@ gss$decade = ifelse(gss$year<1980, '70s',
                                          '00s', '10s'))))
 ```
 
-```{r contigency}
+```{r contigency, echo=FALSE}
 source("http://pcwww.liv.ac.uk/~william/R/crosstab.r")
 
 # creates contigency tables for decades 

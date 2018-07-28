@@ -4,43 +4,39 @@ author: Michal Ondras
 date: '2018-07-24'
 slug: utilizing-parallel-processing-to-improve-model-runtime
 categories:
-  - R
   - Parallel Computing
-tags: []
+tags: [R, foreach, doMC, EC2]
 ---
 
 
 
 <div id="preface" class="section level2">
 <h2>Preface</h2>
-<p>A while I was <em>peer-reviewing</em> a trading strategies research paper, I became bottlenecked by an AdaBoost Decision Tree Stump Analysis (ABDTSA) that was clocking over ~10 minutes to complete. As the ABSTSA was only one-third of the analyses that I was conducting, for logistical, spiritual reasons – I had to remedy this bottleneck. A solution was utilizing the parallel processing package <code>doParallel()</code>.</p>
+<p>A while back I was <em>peer-reviewing</em> a trading strategies research paper, I became bottlenecked by an AdaBoost Decision Tree Stump Analysis that was clocking over ~10 minutes to complete. As this part of my analysis was only one-third of the analyses that I was conducting, for logistical, spiritual reasons – I had to remedy this bottleneck. An immediate solution was utilizing the parallel processing packages: <code>foreach()</code>, and <code>doMC()</code>.</p>
 </div>
-<div id="doparallel-package" class="section level2">
-<h2>doParallel Package</h2>
-<p>Whether or not you are familiar with OpenMP (Multi-processing), or OpenMPI (Message-Passing-Interface), you will be pleseantly suprised with the simplicity of parallelizing your code in R. You really only need four functions:</p>
+<div id="foreach-and-domc-packages" class="section level2">
+<h2><code>foreach</code> and <code>doMC</code> Packages</h2>
+<p>The <code>foreach</code> package supports parallel execution. The <code>foreach</code> function is just a for loop, but it returns objects e.g. lists(), matrices, and arrays. A reason for using <code>foreach</code> package over other looping functions i.e. the <code>apply</code> family is that <code>foreach</code> supports parallel execution. The <code>doMC</code> package provides the mechanism for the <code>foreach</code> function. The <code>doMC</code> package only works on a single computer, <strong>NOT</strong> a cluster of computers. I found this out the hard way.</p>
+<p>To run a parallel job, you simply add <code>%dopar%</code> after initializing the cluster object.</p>
+<pre class="r"><code>registerDoMC(2)                                               #initialize cluster object
+foreach(i=1:4, .combine=&#39;+&#39;) %do%    {some_function(i)}       #sequential 
+foreach(i=1:4, .combine=&#39;+&#39;) %dopar% {some_function(i)}       #parallel </code></pre>
+<p>Seems simple, no? But there are a lot of potential pitfalls. <code>foreach</code> function works best when different tasks can be done independently, but when these tasks have to communicate with each other, then <code>foreach</code> function can be quite inefficient. I too found this out the hard way.</p>
+</div>
+<div id="a-simple-example" class="section level2">
+<h2>A Simple Example</h2>
+<p>The example that I chose to show here is simply calculating the Frobenius norm of a varying sized list of vectors. Beleive it or not, trying to recreate this example to run as my model had done was actually more educational than the original application. I chose this example because it is similar to baseline matrix multiplications which are typically used for comparing performance. My computer only has 2 cores, so to get something more exciting and expensive, I used an EC2 instance. Amazon charged me <code>$\$0.44$</code> to run this. I guess I could’ve bought a Bazooka Joe instead – if those still exist. The results below show the expected overhead in parallelizing small vectors. Spinning up more task takes up more time for smaller sized objects. This seems evident when comparing the red, blue, and black lines below. Likewise, a performance gain for parallelizing is only observed after the object’s size is over <code>$2^{25}$</code>. The parallelization doesn’t quite meet the available number of cores, but this most likely due to other processes working on the EC2.</p>
+<p><img src="/images/7vs2.png" />
+<img src="/images/ratio7vs2.png" /></p>
+</div>
+<div id="some-interesting-references" class="section level2">
+<h2>Some Interesting References:</h2>
 <ol style="list-style-type: decimal">
-<li><code>makeCluster()</code></li>
-<li><code>registerDoParallel()</code></li>
-<li><code>foreach( .., ) %dopar% { ... return}</code></li>
-<li><code>stopCluster()</code></li>
+<li><a href="http://www.louisaslett.com/RStudio_AMI/">RStudio Server Amazon Machine Image (AMI)</a></li>
+<li><a href="https://cran.r-project.org/web/packages/doMC/vignettes/gettingstartedMC.pdf">Getting Started with doMC and foreach</a></li>
+<li><a href="https://cran.r-project.org/web/packages/foreach/vignettes/foreach.pdf">Using the foreach package</a></li>
+<li><a href="https://privefl.github.io/blog/a-guide-to-parallelism-in-r/">A Guide to Parallelism in R</a></li>
+<li><a href="http://www.stat.yale.edu/~jay/EmersonWangPre.pdf">Amazon, EC2, Big Data and High Performance Computing</a></li>
+<li><a href="https://blog.sicara.com/speedup-r-rstudio-parallel-cloud-performance-aws-96d25c1b13e2">Speedup Your R Code with RStudio in AWS</a></li>
 </ol>
-<p><code>makeCluster()</code> is a cluster object that can be fed the number of workers i.e. parallel jobs. <code>registerDoParallel()</code> registers <code>doParallel()</code> to be used with <code>foreach()</code> function. The main part of your code that you want to parallelize goes within the <code>foreach()</code> function. The <code>stopCluster()</code> stops the cluster when you are done using it. The <code>doParallel()</code> package has other functions but these were the main ones that I used. And …that’s really about it.</p>
-</div>
-<div id="an-example" class="section level2">
-<h2>An Example</h2>
-<p>For illustrative purposes, I use matrix multiplication as a benchmark. The code for a sequential run is:</p>
-<pre class="r"><code>for (ii in 1:n){
-  X = matrix(rnorm(ii^2), nrow=ii, ncol=ii)
-  C1 = matVec(X, X)
-}</code></pre>
-<p>whereas the code for a parallel run is:</p>
-<pre class="r"><code>cl = makeCluster(3, type=&#39;FORK&#39;)
-registerDoParallel(cl)
-output = foreach(ii = 1:n, .combine=&#39;c&#39;) %dopar%{
-  Xa = X.X[[ii]]
-  C2 = matVec(Xa, Xa)
-}
-stopCluster(cl)</code></pre>
-<p>The result are below:</p>
-<p><img src="/post/2018-07-24-utilizing-parallel-computing-to-improve-model-runtime_files/figure-html/matrix-1.png" width="672" /><img src="/post/2018-07-24-utilizing-parallel-computing-to-improve-model-runtime_files/figure-html/matrix-2.png" width="672" /></p>
 </div>

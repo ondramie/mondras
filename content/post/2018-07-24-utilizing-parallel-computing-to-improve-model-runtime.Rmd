@@ -4,152 +4,112 @@ author: Michal Ondras
 date: '2018-07-24'
 slug: utilizing-parallel-processing-to-improve-model-runtime
 categories:
-  - R
   - Parallel Computing
-tags: []
+tags: [R, foreach, doMC, EC2]
 ---
 
 ## Preface
-A while back I was _peer-reviewing_ a trading strategies research paper, I became bottlenecked by an AdaBoost Decision Tree Stump Analysis that was clocking over ~10 minutes to complete.  As this part of my analysis was only one-third of the analyses that I was conducting, for logistical, spiritual reasons -- I had to remedy this bottleneck.  An immediate solution was utilizing the parallel processing packages: `foreach()`, and `doMC()`.  A long-term solution was using EC2 Cluster, which will be discussed later.  
+A while back I was _peer-reviewing_ a trading strategies research paper, I became bottlenecked by an AdaBoost Decision Tree Stump Analysis that was clocking over ~10 minutes to complete.  As this part of my analysis was only one-third of the analyses that I was conducting, for logistical, spiritual reasons -- I had to remedy this bottleneck.  An immediate solution was utilizing the parallel processing packages: `foreach()`, and `doMC()`.  
 
-## `forEach` and `doMC` Package
-The `forEach` package allows you to run parallel loops.  To run a parallel job, simply add `%dopar%` after initializing the cluster.  
+## `foreach` and `doMC` Packages
+The `foreach` package supports parallel execution.  The `foreach` function is just a for loop, but it returns objects e.g. lists(), matrices, and arrays.  A reason for using `foreach` package over other looping functions i.e. the `apply` family is that `foreach` supports parallel execution.  The `doMC` package provides the mechanism for the `foreach` function.  The `doMC` package only works on a single computer, __NOT__ a cluster of computers.  I found this out the hard way.  
 
-```{r, codeview3}
-co = registerDoMC(2)                                 #initialize cluster object
-registerDoParallel(co)
-foreach(i=1:4, .combine='+') %do% {sqrt(i)}          #sequential 
-foreach(i=1:4, .combine='+') %dopar% {sqrt(i)}       #parallel 
+To run a parallel job, you simply add `%dopar%` after initializing the cluster object.  
+
+```{r, codeview3, eval=FALSE}
+registerDoMC(2)                                               #initialize cluster object
+foreach(i=1:4, .combine='+') %do%    {some_function(i)}       #sequential 
+foreach(i=1:4, .combine='+') %dopar% {some_function(i)}       #parallel 
 ```
 
-In a perfect world that would be it, but alas we don't live in a perfect world.  
+Seems simple, no? But there are a lot of potential pitfalls.  `foreach` function works best when different tasks can be done independently, but when these tasks have to communicate with each other, then `foreach` function can be quite inefficient.  I too found this out the hard way. 
 
+## A Simple Example
+The example that I chose to show here is simply calculating the Frobenius norm of a varying sized list of vectors.  Beleive it or not, trying to recreate this example to run as my model had done was actually more educational than the original application.  I chose this example because it is similar to baseline matrix multiplications which are typically used for comparing performance.  My computer only has 2 cores, so to get something more exciting and expensive, I used an EC2 instance.  Amazon charged me `$\$0.44$` to run this.  I guess I could've bought a Bazooka Joe instead -- if those still exist.  The results below show the expected overhead in parallelizing small vectors.  Spinning up more task takes up more time for smaller sized objects. This seems evident when comparing the red, blue, and black lines below.  Likewise, a performance gain for parallelizing is only observed after the object's size is over `$2^{25}$`.  The parallelization doesn't quite meet the available number of cores, but this most likely due to other processes working on the EC2.  
 
-## An Example
-The example that I chose to show here is simply calculating the Frobenius norm of a varying sized vector. I chose this example becuase it is a simplier baseline of matrix multiplications which are typically used for comparing performance.  My computer is quite old: early 2011 MacBook pro, so it only has two cores of which I could utilize 2 threads per core.  The results below show the expected unsurmountable overhead in parallelizing small vectors. A performance gain for parallelizing is only observed after a vector size of ~2^12.  The gain at a vector size of 2^18 is ~902/536 = ~1.6, which isn't quite 2 which I specified.  
+![](/images/7vs2.png)
+![](/images/ratio7vs2.png)
 
+```{r, code, eval=FALSE, echo=FALSE}
+library(foreach)          # foreach(); %do% and %dopar% 
+library(doMC)             # registerDoMC()
+library(itertools)        # isplitIndices()
 
+# returns the frobenious norm
+vNorm  = function(vector){return(norm(as.matrix(vector), type = "f"))}
 
-Wanting to see a greater gain, I decided to use an AWS EC2 16CPU instance and compare the results.  
+################################################################################
+##                      splits m tasks of equal size                          ##
+################################################################################
+ans = matrix(0, 25, 7)   # matrix to record results
 
+for (j in 1:25) {
+  n = j; m = 10
+  # setup: creates list of m with randomized vectors of size 2^n
+  ans[j, 2] = system.time({vect = lapply(rep(n, m), function(x) c(rnorm(2^x)))})[3]
+  ans[j, 1] = object.size(vect) 
 
+  # sequential 
+  ans[j, 3] = system.time({foreach(i=1:m, .combine='c') %do%    {vNorm(unlist(vect[i]))}})[3]
+ 
+  # parallel 
+  registerDoMC(detectCores() - 1)   # register number of cores
+  ans[j, 4] = system.time({foreach(i=1:m, .combine='c') %dopar% {vNorm(unlist(vect[i]))}})[3] 
 
-
-```{r, vectorNorm, eval=FALSE}
-library(doParallel)               # makeCluster(); registerDoParallel()
-library(foreach)                  # foreach()
-
-norm.seq = function(A){
-  # inefficient vector or matrix norm 
-  n = nrow(A); m = ncol(A); c = 0
-  if (is.null(n)){
-    n = length(A)
-    # c = foreach(ii=1:n, .combine='+') %do% {(A[ii] * A[ii])} 
-    c = foreach::foreach(a=A, .combine='+') %do% {sum(a * a)} 
-    } else {
-      c = foreach::foreach(ii=1:n, .combine='+') %:% {
-        foreach::foreach(jj=1:m, .combine='+') %do% {(A[ii, jj] * A[ii, jj])}
-      }
-    }
-  return(sqrt(c))
-}
-
-norm.par = function(A){
-  # parallelized vector or matrix norm 
-  n = nrow(A); m = ncol(A); c = 0
-  cl = makeCluster(2)  # cluster object
-  registerDoParallel(cl)
-  if (is.null(n)){
-    n = length(A)                  # new iterator
-    # c = foreach(ii=1:n, .combine='+') %dopar% {(A[ii]*A[ii])}
-    c = foreach(a=A, .combine='+') %dopar% {sum(a*a)}
-    }  else {
-    c = foreach::foreach(ii=1:n, .combine='+') %dopar% {
-            foreach(jj=1:m, .combine='+') %do% {(A[ii, jj] * A[ii, jj])}
-      }
-    }
-  stopCluster(cl)
-  return(sqrt(c))
-}
-
-Y = c(rnorm(1000^2))                                    # randomized vector
-system.time({a = norm(as.matrix(Y), type="F")})[3]          # built-in R norm function
-system.time({b = norm.seq(Y)})[3]                           # 
-system.time({c = norm.par(Y)})[3]                           # 
-
-```
-
-
-```{r, matrix, message=FALSE, echo=FALSE, eval=FALSE}
-
-# frobenius norm (inefficient)
-norm.m.i = function(A) {
-  n = nrow(A); m = ncol(A)
-  ans = 0
-  for (ii in 1:n){
-    for (jj in 1:m){
-      ans = ans + sum(A[ii, jj]*A[ii, jj]) 
-    }
-  }
-  return(sqrt(ans)) 
-}
-
-# frobenious norm (parallelized)
-norm.m.e = function(A){
-  n = nrow(A); m = ncol(A)
-  ans = foreach::foreach(i=1:n, .combine='+') %dopar% {
-            foreach(j=1:m, .combine='+') %do% {(A[i, j] * A[i, j])}
-        }
-  return(sqrt(ans))
-}
-
-X = matrix(rnorm(100^2), 100, 100)
-
-norm.time   = system.time({f = norm(X, type='F')})[3]   # R built-in norm 
-ni.time     = system.time({f.i = norm.m.i(X)})[3]             # inefficient norm
-
-cl = makeCluster(2, type='FORK')                        # cluster object
-registerDoParallel(cl)
-ne.time = system.time({f.e = norm.m.e(X)})[3]             # 
-stopCluster(cl)
-```
-
-
-
-```{r,s, eval=FALSE, echo=FALSE}
-n = 80                           # nrow=ncol = n
-size = c(vector(),1:n)
-seq.time = c(vector(),1:n)
-ll.time  = c(vector(),1:n)
-X.X = list()
-
-for (ii in 1:n){
-  X = matrix(rnorm(ii^2), nrow=ii, ncol=ii)
-  X.X[[ii]] = X
-  size[ii] = 2^ii
+  registerDoMC(2)                   # register number of cores 2
+  ans[j, 5] = system.time({foreach(i=1:m, .combine='c') %dopar% {vNorm(unlist(vect[i]))}})[3]
   
-  seq.s = Sys.time()
-  for (jj in 1:100){C1 = matVec(X, X)}
-  seq.e = Sys.time() 
-  seq.time[ii] = (seq.e - seq.s)/100
+  ans[j, 6] = ans[j, 3]/ans[j, 4]   # seq/parallel 
+  ans[j, 7] = ans[j, 3]/ans[j, 5]   # seq/parallel 2
+  
+  print(j)
+  gc()
 }
 
-cl = makeCluster(3, type='FORK')                        # cluster object
-registerDoParallel(cl)
-
-ll.s = Sys.time()
-output = foreach(ii = 1:n, .combine='c') %dopar%{
-  Xa = X.X[[ii]]
-  C2 = matVec(Xa, Xa)              
+if (T) {
+  # smoothed data since I don't want to run for loop and a foreach loop
+  par.3 = lowess(ans[, 6] ~ log2(ans[, 1]))
+  par.2 = lowess(ans[, 7] ~ log2(ans[, 1]))
+  
+  # raw data
+  c1 = detectCores() - 1
+  plot(log2(ans[, 1]), ans[, 6],
+       xlab='binary bytes: log2(x)', 
+       ylab = 'sequential/parallel', main="Sequential over Parallel", 
+       type='l')
+  lines(log2(ans[, 1]), ans[, 7], col=2)
+  legend("topleft", legend=c(c1, "2"), col=c("black", "red"), lty=1)
+  
+  # smoothed data
+  plot(par.3,
+       xlab='binary bytes: log2(x)', 
+       ylab = 'sequential/parallel', main="Sequential over Parallel", 
+       type='l')
+  lines(par.2, col=2)
+  legend("topleft", legend=c(c1, "2"), col=c("black", "red"), lty=1)
+  
+  # raw data
+  plot(log2(ans[, 1]), log(ans[, 3]), type='l', 
+       xlab='binary bytes: log2(x)', ylab='time, s', 
+       main="Parallel vs. Sequential")
+  lines(log2(ans[, 1]), log(ans[, 4]), col=2)
+  lines(log2(ans[, 1]), log(ans[, 5]), col=4)
+  legend("topleft", legend=c("Sequential", c1, "2"), col=c("black", "red", "blue"), lty=1)
+  
+  # smoothed data
+  plot(lowess(log(ans[, 3])~ log2(ans[, 1])), type='l', 
+       xlab='binary bytes: log2(x)', ylab='time, s', 
+       main="Parallel vs. Sequential")
+  lines(lowess(log(ans[, 4])~log2(ans[, 1])), col=2)
+  lines(lowess(log(ans[, 5])~log2(ans[, 1])), col=4)
+  legend("topleft", legend=c("Sequential", cl, "2"), col=c("black", "red", "blue"), lty=1)
 }
-stopCluster(cl)
-ll.e = Sys.time()
-ll.time = ll.e - ll.s
-
-plot(log2(size), output/seq.time*1000, 
-     xlab='Matrix Size: 2^x by 2^x', ylab = 'ratio:parallel/sequential', main="Parallel vs. Sequential: 3 cores", type='l')
-plot(log2(size), seq.time, type='l', xlab='Matrix Size: 2^x by 2^x', ylab='Time, ms', 
-     main="Parallel vs. Sequential: 3 cores")
-lines(log2(size), output, col=2)
-legend("topleft", legend=c("Sequential", "Parallel"), col=c("black", "red"), lty=1)
 ```
+
+## Some Interesting References:
+1. [RStudio Server Amazon Machine Image (AMI)](http://www.louisaslett.com/RStudio_AMI/)
+2. [Getting Started with doMC and foreach](https://cran.r-project.org/web/packages/doMC/vignettes/gettingstartedMC.pdf) 
+3. [Using the foreach package](https://cran.r-project.org/web/packages/foreach/vignettes/foreach.pdf)
+4. [A Guide to Parallelism in R](https://privefl.github.io/blog/a-guide-to-parallelism-in-r/)
+5. [Amazon, EC2, Big Data and High Performance Computing](http://www.stat.yale.edu/~jay/EmersonWangPre.pdf)
+6. [Speedup Your R Code with RStudio in AWS](https://blog.sicara.com/speedup-r-rstudio-parallel-cloud-performance-aws-96d25c1b13e2)
