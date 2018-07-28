@@ -50,8 +50,7 @@ tags: [R, Marascuillo]
 <li><span class="math inline">\(H_a\)</span>: there is a difference between the pairwise proportion differences</li>
 </ul>
 <p>The critical range will be <span class="math inline">\(\chi^2\)</span> statistic of 9.49 (0.95 CI, degrees of freedom = 4).</p>
-<pre class="r"><code># TODO shiny data.table with highlighted values
-gender = crosstab(gss, row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
+<pre class="r"><code>gender = crosstab(gss, row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
 
 marascuillo_procedure = function(p){
   n = length(p[, c(1)]) - 1
@@ -60,15 +59,16 @@ marascuillo_procedure = function(p){
   N = length(prop)
   value = critical.range = compare= c()
   
-  ## Compute critical values.
-  for (i in 1:(N-1))
-     { for (j in (i+1):N){
-       value = c(value,(abs(prop[i]-prop[j])))
-       critical.range = c(critical.range,
-        sqrt(qchisq(.95,4))*sqrt(prop[i]*(1-prop[i])/p[i,2] + prop[j]*(1-prop[j])/p[j,2]))
+  ## Compute critical values; small data set; efficiency non-issue
+  for (i in 1:(N - 1))
+     { for (j in (i + 1):N){
+       value = c(value,(abs(prop[i] - prop[j])))
+       critical.range = c(critical.range, 
+          sqrt(qchisq(.95,4))*sqrt(prop[i]*(1-prop[i])/p[i,2] + prop[j]*(1-prop[j])/p[j,2]))
         compare = c(compare, paste(names[i], names[j], sep = &#39;-&#39;))
       }
-     }
+  }
+  
   return(data.frame(values = round(value, 3),
                     critical = round(critical.range,3), 
                     comparison = compare))

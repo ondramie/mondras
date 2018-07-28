@@ -41,17 +41,7 @@ contigency_table = function(temp){
 
 decade = function(temp, ct){
   decades = c("70s", "80s", "90s", "00s", "10s")      # decades of interest
-  data.list = lapply(decades, function(index) ct(temp[temp$decade == index, ]))
-  
-  # list of contigency tables 
-  #data.list = list()
-  #for (index in decades){
-  #  data.list[[index]] = ct(temp[temp$decade == index, ])
-  #}
-  #print("data.list")
-  #print(data.list)
-  
-  return(data.list)
+  return(lapply(decades, function(index) ct(temp[temp$decade == index, ])))
 }
   
 decades = decade(gss, contigency_table)
@@ -88,7 +78,6 @@ The Marascuillo procedure can be used to compare pairwise differences between th
 The critical range will be $\chi^2$ statistic of 9.49 (0.95 CI, degrees of freedom = 4). 
 
 ```{r marascuillo}
-# TODO shiny data.table with highlighted values
 gender = crosstab(gss, row.vars = "decade", col.vars = "sex", type='f')
 
 marascuillo_procedure = function(p){
@@ -98,15 +87,16 @@ marascuillo_procedure = function(p){
   N = length(prop)
   value = critical.range = compare= c()
   
-  ## Compute critical values.
-  for (i in 1:(N-1))
-     { for (j in (i+1):N){
-       value = c(value,(abs(prop[i]-prop[j])))
-       critical.range = c(critical.range,
-        sqrt(qchisq(.95,4))*sqrt(prop[i]*(1-prop[i])/p[i,2] + prop[j]*(1-prop[j])/p[j,2]))
+  ## Compute critical values; small data set; efficiency non-issue
+  for (i in 1:(N - 1))
+     { for (j in (i + 1):N){
+       value = c(value,(abs(prop[i] - prop[j])))
+       critical.range = c(critical.range, 
+          sqrt(qchisq(.95,4))*sqrt(prop[i]*(1-prop[i])/p[i,2] + prop[j]*(1-prop[j])/p[j,2]))
         compare = c(compare, paste(names[i], names[j], sep = '-'))
       }
-     }
+  }
+  
   return(data.frame(values = round(value, 3),
                     critical = round(critical.range,3), 
                     comparison = compare))
