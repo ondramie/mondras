@@ -12,14 +12,10 @@ tags: [R, Marascuillo]
 
 <div id="preface" class="section level2">
 <h2>Preface</h2>
-<p>I attempt to determine which variables are explanatory and response for data set of all categorical variables.</p>
-<div id="load-packages" class="section level3">
-<h3>Load packages</h3>
+<p>In an attempting to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn’t used per se for determining whether a variable is explanatory or response. This data was taken from General Social Survey.</p>
 </div>
-<div id="load-data" class="section level3">
-<h3>Load data</h3>
-<div id="categorical-data-of-interest" class="section level4">
-<h4>Categorical Data of Interest</h4>
+<div id="categorical-data-of-interest" class="section level2">
+<h2>Categorical Data of Interest</h2>
 <p>The categorical variables of interest are:</p>
 <ul>
 <li>Nominal (<code>sex</code>)
@@ -35,7 +31,10 @@ tags: [R, Marascuillo]
 <li>Too Little, About Right, and Too Much</li>
 </ul></li>
 </ul>
-<p><strong>Which of these variables are explanatory or response variables?</strong> Sex should be an explanatory variable. It should be pretty consistent among the decades. A contigency table of the proportions of males and females surveyed per decade is displayed below.</p>
+<p>Statisticians prefer to express the intent of their experiments, studies before performing a set of analyses. Unfortunately, a lot of the time a statistician is asked to make sense of data after the fact. Though not a statistician but an applied mathematician, I am attempting to make sense of data after the fact by asking myself some questions.</p>
+<p><strong>Which of these variables could be explanatory or response variables?</strong></p>
+<p>Sex should be an explanatory variable. It should be pretty consistent among the decades in the US, as sex-selective abortion is not wide-scaled practiced.</p>
+<p>A contingency table of the proportions of males and females surveyed per decade is displayed below.</p>
 <pre class="r"><code>crosstab(gss, row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;r&#39;)</code></pre>
 <pre><code>##        sex   Male Female    Sum
 ## decade                         
@@ -44,7 +43,8 @@ tags: [R, Marascuillo]
 ## 70s         45.76  54.24 100.00
 ## 80s         42.78  57.22 100.00
 ## 90s         43.35  56.65 100.00</code></pre>
-<p><strong>Are these proportions changing with time?</strong> The Marascuillo procedure can be used to compare pairwise differences between the decades. A pair proportion difference is statistically significant if its value exceeds the critical range value. Here, we state that the following hypotheses:</p>
+<p><strong>Are these proportions changing with time?</strong></p>
+<p>The Marascuillo procedure can be used to compare pairwise differences between the decades. A pair proportion difference is statistically significant if its value exceeds the critical range value. Here, we state that the following hypotheses:</p>
 <ul>
 <li><span class="math inline">\(H_o\)</span>: there is no difference between the pairwise proportion differences</li>
 <li><span class="math inline">\(H_a\)</span>: there is a difference between the pairwise proportion differences</li>
@@ -62,8 +62,7 @@ marascuillo_procedure = function(p){
   
   ## Compute critical values.
   for (i in 1:(N-1))
-     { for (j in (i+1):N)
-      {
+     { for (j in (i+1):N){
        value = c(value,(abs(prop[i]-prop[j])))
        critical.range = c(critical.range,
         sqrt(qchisq(.95,4))*sqrt(prop[i]*(1-prop[i])/p[i,2] + prop[j]*(1-prop[j])/p[j,2]))
@@ -87,7 +86,7 @@ marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
 ## 8   0.030    0.020    70s-80s
 ## 9   0.024    0.020    70s-90s
 ## 10  0.006    0.018    80s-90s</code></pre>
-<p>The statistically significant differences are these pairwise comparisions: 80s and 00s; 70s and 80s; and 70s and 90s. My decade demarcation will need a little tweaking. Looking at year-by-year proportion differences, I see that the years 1972, 73, and 84, when compared to other years, are statistically different.</p>
+<p>The statistically significant differences are these pairwise comparisons: 80s and 00s; 70s and 80s; and 70s and 90s. The decade demarcation could afford some tweaking. Looking at year-by-year proportion differences, I see that the years 1972, 73, and 84, when compared to other years, are statistically different.</p>
 <pre class="r"><code># list of year contigency tables 
 gender.yr = crosstab(gss, row.vars = &quot;year&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
 gender.prop.yr = marascuillo_procedure(gender.yr$table[, c(1,3)])
@@ -115,7 +114,8 @@ gender.prop.yr[gender.prop.yr$values &gt; gender.prop.yr$critical, ]</code></pre
 ## 37   0.060    0.056  1973-1984
 ## 63   0.060    0.056  1974-1984
 ## 251  0.054    0.052  1984-2008</code></pre>
-<p><strong>What if I were to elminate them?</strong> Eliminating those years, I see that there are no pairwise decade-by-decade differences in proportions that are significant.</p>
+<p><strong>What if I were to elminate them?</strong></p>
+<p>Eliminating those years, I see that there are no pairwise decade-by-decade differences in proportions that are significant. The years of potential exclusion were years during which additional tests, surveys were done that focused on increasing information from demographics undocumented in the past.</p>
 <pre class="r"><code>gender = crosstab(gss[gss$year &gt; 1973 &amp; gss$year != 1984,], 
                   row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
 marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
@@ -130,11 +130,12 @@ marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
 ## 8   0.016    0.022    70s-80s
 ## 9   0.013    0.022    70s-90s
 ## 10  0.003    0.019    80s-90s</code></pre>
-<p>Gender could be an explanatory variable.</p>
+<p>Gender could be an explanatory variable. More of an assessment is needed to determine whether exclusion of those years is warranted.</p>
+</div>
+<div id="references" class="section level2">
+<h2>References:</h2>
 <ol style="list-style-type: decimal">
-<li>NIST: <em>Comparing multiple proportions: The Marascuillo procedure</em>,
+<li>NIST: <em>Comparing multiple proportions: The Marascuillo procedure</em>,<br />
 <a href="http://www.itl.nist.gov/div898/handbook/prc/section4/prc474.htm" class="uri">http://www.itl.nist.gov/div898/handbook/prc/section4/prc474.htm</a></li>
 </ol>
-</div>
-</div>
 </div>
