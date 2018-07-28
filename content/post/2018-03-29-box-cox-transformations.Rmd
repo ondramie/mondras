@@ -10,11 +10,17 @@ tags: []
 
 ## What is it? 
 
-The Box-Cox procedure performs a data transformation or a regression transformation.  Here, I am only interested in talking about the regression transform, not the data transform.  There are several ways to represent the transform[^1], based on the original distribution of the data, but in generalities, it looks like: 
+The Box-Cox procedure performs a data transformation or a regression transformation.  
+
+## Why am I using it?
+Here, I am only interested in talking about the regression transform, not the data transform.  
+
+## What does it look like?
+There are several ways to represent the transform[^1], based on the original distribution of the data, but in generalities, it looks like: 
 
 `$$Y(\lambda) = \Bigg\{\begin{array} 1\frac{Y^{\lambda}-1}{\lambda} & \text{if } \lambda \ne 0 \\ \log(Y) & \text{if } \lambda = 0 \end{array}$$`
 
-Here, `$Y$` is a random variable, the response variable.  Yes, it's one sided and a transform is not performed on the explanatory variables.  The assumption is that `$Y^k$` behaves with a normal distribution. Therefore, the multivariate density of `$Y^k$` is expressed:
+Here, `$Y$` is a random variable, the response variable.  Yes, it's one-sided, and a transform is not performed on the explanatory variables.  The assumption is that `$Y^k$` behaves with a normal distribution. Therefore, the multivariate density of `$Y^k$` is expressed:
 
 `$$ f_{Y^{\lambda}} = \frac{\exp(-\frac{1}{2}(y^{\lambda} - \mu_y)^T(\Sigma^{-1}) (y^{\lambda} - \mu_y))}{\sqrt{(2\pi)^k | \Sigma |}}
 $$`
@@ -35,7 +41,7 @@ $$`
 The estimates of `$\mu_y, \sigma^2$`, and `$\lambda$` are done by theoretically taking partials of each. In reality, the estimates can be solved for numerically. Choosing which numerical method is a whole other conversation.      
 
 
-## Example
+## An Example
 
 The data are housing prices from the AER library. We have one response "price" and eleven predictors. Some of predictors are factors. The box-cox procedure produces:
 

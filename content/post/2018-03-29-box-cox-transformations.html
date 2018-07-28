@@ -12,9 +12,17 @@ tags: []
 
 <div id="what-is-it" class="section level2">
 <h2>What is it?</h2>
-<p>The Box-Cox procedure performs a data transformation or a regression transformation. Here, I am only interested in talking about the regression transform, not the data transform. There are several ways to represent the transform<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>, based on the original distribution of the data, but in generalities, it looks like:</p>
+<p>The Box-Cox procedure performs a data transformation or a regression transformation.</p>
+</div>
+<div id="why-am-i-using-it" class="section level2">
+<h2>Why am I using it?</h2>
+<p>Here, I am only interested in talking about the regression transform, not the data transform.</p>
+</div>
+<div id="what-does-it-look-like" class="section level2">
+<h2>What does it look like?</h2>
+<p>There are several ways to represent the transform<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>, based on the original distribution of the data, but in generalities, it looks like:</p>
 <p><code>$$Y(\lambda) = \Bigg\{\begin{array} 1\frac{Y^{\lambda}-1}{\lambda} &amp; \text{if } \lambda \ne 0 \\ \log(Y) &amp; \text{if } \lambda = 0 \end{array}$$</code></p>
-<p>Here, <code>$Y$</code> is a random variable, the response variable. Yes, it’s one sided and a transform is not performed on the explanatory variables. The assumption is that <code>$Y^k$</code> behaves with a normal distribution. Therefore, the multivariate density of <code>$Y^k$</code> is expressed:</p>
+<p>Here, <code>$Y$</code> is a random variable, the response variable. Yes, it’s one-sided, and a transform is not performed on the explanatory variables. The assumption is that <code>$Y^k$</code> behaves with a normal distribution. Therefore, the multivariate density of <code>$Y^k$</code> is expressed:</p>
 <p><code>$$ f_{Y^{\lambda}} = \frac{\exp(-\frac{1}{2}(y^{\lambda} - \mu_y)^T(\Sigma^{-1}) (y^{\lambda} - \mu_y))}{\sqrt{(2\pi)^k | \Sigma |}} $$</code></p>
 <p>The assumption is constant variance, so <code>$\Sigma = \sigma^2 I$</code>. Note <code>$k$</code> is equal to the index. To get the density of <code>$Y$</code>, the method of transformations (no relation to Box-Cox transformation) is used where the Jacobian is multiplied by the density function of <code>$Y^{\lambda}$</code></p>
 <p><code>$$ f_Y = \frac{\exp(-\frac{1}{2}(y^{\lambda} - \mu_y)^T(\Sigma^{-1}) (y^{\lambda} - \mu_y))}{\sqrt{(2\pi)^k | \Sigma |}} \prod_i^k y^{\lambda-1} $$</code></p>
@@ -23,8 +31,8 @@ tags: []
 <p><code>$$ \log(f_Y) = -\frac{1}{2}(y^{\lambda} - \mu_y)^T(\Sigma^{-1}) (y^{\lambda} - \mu_y) - \frac{k}{2} \log(2\pi \Sigma) + (\lambda-1)\sum_i^k y_i $$</code></p>
 <p>The estimates of <code>$\mu_y, \sigma^2$</code>, and <code>$\lambda$</code> are done by theoretically taking partials of each. In reality, the estimates can be solved for numerically. Choosing which numerical method is a whole other conversation.</p>
 </div>
-<div id="example" class="section level2">
-<h2>Example</h2>
+<div id="an-example" class="section level2">
+<h2>An Example</h2>
 <p>The data are housing prices from the AER library. We have one response “price” and eleven predictors. Some of predictors are factors. The box-cox procedure produces:</p>
 <p><img src="/post/2018-03-29-box-cox-transformations_files/figure-html/housing-1.png" width="672" /></p>
 <pre><code>## [1] 0.1414141</code></pre>

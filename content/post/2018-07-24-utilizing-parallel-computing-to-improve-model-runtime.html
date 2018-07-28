@@ -1,0 +1,46 @@
+---
+title: Utilizing Parallel Processing to Improve Model Runtime
+author: Michal Ondras
+date: '2018-07-24'
+slug: utilizing-parallel-processing-to-improve-model-runtime
+categories:
+  - R
+  - Parallel Computing
+tags: []
+---
+
+
+
+<div id="preface" class="section level2">
+<h2>Preface</h2>
+<p>A while I was <em>peer-reviewing</em> a trading strategies research paper, I became bottlenecked by an AdaBoost Decision Tree Stump Analysis (ABDTSA) that was clocking over ~10 minutes to complete. As the ABSTSA was only one-third of the analyses that I was conducting, for logistical, spiritual reasons – I had to remedy this bottleneck. A solution was utilizing the parallel processing package <code>doParallel()</code>.</p>
+</div>
+<div id="doparallel-package" class="section level2">
+<h2>doParallel Package</h2>
+<p>Whether or not you are familiar with OpenMP (Multi-processing), or OpenMPI (Message-Passing-Interface), you will be pleseantly suprised with the simplicity of parallelizing your code in R. You really only need four functions:</p>
+<ol style="list-style-type: decimal">
+<li><code>makeCluster()</code></li>
+<li><code>registerDoParallel()</code></li>
+<li><code>foreach( .., ) %dopar% { ... return}</code></li>
+<li><code>stopCluster()</code></li>
+</ol>
+<p><code>makeCluster()</code> is a cluster object that can be fed the number of workers i.e. parallel jobs. <code>registerDoParallel()</code> registers <code>doParallel()</code> to be used with <code>foreach()</code> function. The main part of your code that you want to parallelize goes within the <code>foreach()</code> function. The <code>stopCluster()</code> stops the cluster when you are done using it. The <code>doParallel()</code> package has other functions but these were the main ones that I used. And …that’s really about it.</p>
+</div>
+<div id="an-example" class="section level2">
+<h2>An Example</h2>
+<p>For illustrative purposes, I use matrix multiplication as a benchmark. The code for a sequential run is:</p>
+<pre class="r"><code>for (ii in 1:n){
+  X = matrix(rnorm(ii^2), nrow=ii, ncol=ii)
+  C1 = matVec(X, X)
+}</code></pre>
+<p>whereas the code for a parallel run is:</p>
+<pre class="r"><code>cl = makeCluster(3, type=&#39;FORK&#39;)
+registerDoParallel(cl)
+output = foreach(ii = 1:n, .combine=&#39;c&#39;) %dopar%{
+  Xa = X.X[[ii]]
+  C2 = matVec(Xa, Xa)
+}
+stopCluster(cl)</code></pre>
+<p>The result are below:</p>
+<p><img src="/post/2018-07-24-utilizing-parallel-computing-to-improve-model-runtime_files/figure-html/matrix-1.png" width="672" /><img src="/post/2018-07-24-utilizing-parallel-computing-to-improve-model-runtime_files/figure-html/matrix-2.png" width="672" /></p>
+</div>

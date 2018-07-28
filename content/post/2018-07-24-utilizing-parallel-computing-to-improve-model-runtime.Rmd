@@ -1,0 +1,155 @@
+---
+title: Utilizing Parallel Processing to Improve Model Runtime
+author: Michal Ondras
+date: '2018-07-24'
+slug: utilizing-parallel-processing-to-improve-model-runtime
+categories:
+  - R
+  - Parallel Computing
+tags: []
+---
+
+## Preface
+A while back I was _peer-reviewing_ a trading strategies research paper, I became bottlenecked by an AdaBoost Decision Tree Stump Analysis that was clocking over ~10 minutes to complete.  As this part of my analysis was only one-third of the analyses that I was conducting, for logistical, spiritual reasons -- I had to remedy this bottleneck.  An immediate solution was utilizing the parallel processing packages: `foreach()`, and `doMC()`.  A long-term solution was using EC2 Cluster, which will be discussed later.  
+
+## `forEach` and `doMC` Package
+The `forEach` package allows you to run parallel loops.  To run a parallel job, simply add `%dopar%` after initializing the cluster.  
+
+```{r, codeview3}
+co = registerDoMC(2)                                 #initialize cluster object
+registerDoParallel(co)
+foreach(i=1:4, .combine='+') %do% {sqrt(i)}          #sequential 
+foreach(i=1:4, .combine='+') %dopar% {sqrt(i)}       #parallel 
+```
+
+In a perfect world that would be it, but alas we don't live in a perfect world.  
+
+
+## An Example
+The example that I chose to show here is simply calculating the Frobenius norm of a varying sized vector. I chose this example becuase it is a simplier baseline of matrix multiplications which are typically used for comparing performance.  My computer is quite old: early 2011 MacBook pro, so it only has two cores of which I could utilize 2 threads per core.  The results below show the expected unsurmountable overhead in parallelizing small vectors. A performance gain for parallelizing is only observed after a vector size of ~2^12.  The gain at a vector size of 2^18 is ~902/536 = ~1.6, which isn't quite 2 which I specified.  
+
+
+
+Wanting to see a greater gain, I decided to use an AWS EC2 16CPU instance and compare the results.  
+
+
+
+
+```{r, vectorNorm, eval=FALSE}
+library(doParallel)               # makeCluster(); registerDoParallel()
+library(foreach)                  # foreach()
+
+norm.seq = function(A){
+  # inefficient vector or matrix norm 
+  n = nrow(A); m = ncol(A); c = 0
+  if (is.null(n)){
+    n = length(A)
+    # c = foreach(ii=1:n, .combine='+') %do% {(A[ii] * A[ii])} 
+    c = foreach::foreach(a=A, .combine='+') %do% {sum(a * a)} 
+    } else {
+      c = foreach::foreach(ii=1:n, .combine='+') %:% {
+        foreach::foreach(jj=1:m, .combine='+') %do% {(A[ii, jj] * A[ii, jj])}
+      }
+    }
+  return(sqrt(c))
+}
+
+norm.par = function(A){
+  # parallelized vector or matrix norm 
+  n = nrow(A); m = ncol(A); c = 0
+  cl = makeCluster(2)  # cluster object
+  registerDoParallel(cl)
+  if (is.null(n)){
+    n = length(A)                  # new iterator
+    # c = foreach(ii=1:n, .combine='+') %dopar% {(A[ii]*A[ii])}
+    c = foreach(a=A, .combine='+') %dopar% {sum(a*a)}
+    }  else {
+    c = foreach::foreach(ii=1:n, .combine='+') %dopar% {
+            foreach(jj=1:m, .combine='+') %do% {(A[ii, jj] * A[ii, jj])}
+      }
+    }
+  stopCluster(cl)
+  return(sqrt(c))
+}
+
+Y = c(rnorm(1000^2))                                    # randomized vector
+system.time({a = norm(as.matrix(Y), type="F")})[3]          # built-in R norm function
+system.time({b = norm.seq(Y)})[3]                           # 
+system.time({c = norm.par(Y)})[3]                           # 
+
+```
+
+
+```{r, matrix, message=FALSE, echo=FALSE, eval=FALSE}
+
+# frobenius norm (inefficient)
+norm.m.i = function(A) {
+  n = nrow(A); m = ncol(A)
+  ans = 0
+  for (ii in 1:n){
+    for (jj in 1:m){
+      ans = ans + sum(A[ii, jj]*A[ii, jj]) 
+    }
+  }
+  return(sqrt(ans)) 
+}
+
+# frobenious norm (parallelized)
+norm.m.e = function(A){
+  n = nrow(A); m = ncol(A)
+  ans = foreach::foreach(i=1:n, .combine='+') %dopar% {
+            foreach(j=1:m, .combine='+') %do% {(A[i, j] * A[i, j])}
+        }
+  return(sqrt(ans))
+}
+
+X = matrix(rnorm(100^2), 100, 100)
+
+norm.time   = system.time({f = norm(X, type='F')})[3]   # R built-in norm 
+ni.time     = system.time({f.i = norm.m.i(X)})[3]             # inefficient norm
+
+cl = makeCluster(2, type='FORK')                        # cluster object
+registerDoParallel(cl)
+ne.time = system.time({f.e = norm.m.e(X)})[3]             # 
+stopCluster(cl)
+```
+
+
+
+```{r,s, eval=FALSE, echo=FALSE}
+n = 80                           # nrow=ncol = n
+size = c(vector(),1:n)
+seq.time = c(vector(),1:n)
+ll.time  = c(vector(),1:n)
+X.X = list()
+
+for (ii in 1:n){
+  X = matrix(rnorm(ii^2), nrow=ii, ncol=ii)
+  X.X[[ii]] = X
+  size[ii] = 2^ii
+  
+  seq.s = Sys.time()
+  for (jj in 1:100){C1 = matVec(X, X)}
+  seq.e = Sys.time() 
+  seq.time[ii] = (seq.e - seq.s)/100
+}
+
+cl = makeCluster(3, type='FORK')                        # cluster object
+registerDoParallel(cl)
+
+ll.s = Sys.time()
+output = foreach(ii = 1:n, .combine='c') %dopar%{
+  Xa = X.X[[ii]]
+  C2 = matVec(Xa, Xa)              
+}
+stopCluster(cl)
+ll.e = Sys.time()
+ll.time = ll.e - ll.s
+
+plot(log2(size), output/seq.time*1000, 
+     xlab='Matrix Size: 2^x by 2^x', ylab = 'ratio:parallel/sequential', main="Parallel vs. Sequential: 3 cores", type='l')
+plot(log2(size), seq.time, type='l', xlab='Matrix Size: 2^x by 2^x', ylab='Time, ms', 
+     main="Parallel vs. Sequential: 3 cores")
+lines(log2(size), output, col=2)
+legend("topleft", legend=c("Sequential", "Parallel"), col=c("black", "red"), lty=1)
+```
