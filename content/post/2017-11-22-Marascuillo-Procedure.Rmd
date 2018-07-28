@@ -9,7 +9,7 @@ tags: [R, Marascuillo]
 ---
 
 ## Preface
-In an attempting to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn't used per se for determining whether a variable is explanatory or response.  This data are from General Social Survey.     
+In an attempting to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn't used per se for determining whether a variable is explanatory or response.  This data are from the General Social Survey.     
 
 ```{r set-options, echo=FALSE, cache=FALSE}
 options(width = 10000)
@@ -104,7 +104,7 @@ marascuillo_procedure = function(p){
 
 marascuillo_procedure(gender$table[, c(1,3)])
 ```
-The statistically significant differences are these pairwise comparisons: 80s and 00s; 70s and 80s; and 70s and 90s.  The decade demarcation could afford some tweaking.  Looking at year-by-year proportion differences, I see that the years 1972, 73, and 84, when compared to other years, are statistically different. 
+The statistically significant differences are these pairwise comparisons: 80s and 00s; 70s and 80s; and 70s and 90s.  The decade demarcation could afford some tweaking.  Looking at year-by-year proportion differences, I observed that the years 1972, 73, and 84, when compared to other years, are statistically different. 
 
 ```{r year-by-year}
 # list of year contigency tables 
@@ -114,7 +114,7 @@ gender.prop.yr[gender.prop.yr$values > gender.prop.yr$critical, ]
 ```
 **What if I were to elminate them?** 
 
-Eliminating those years,  I see that there are no pairwise decade-by-decade differences in proportions that are significant.  The years of potential exclusion were years during which additional tests, surveys were done that focused on increasing information from demographics undocumented in the past.    
+if I eliminate those years,  then I see that there are no pairwise decade-by-decade differences in proportions that are significant.  The years of potential exclusion were years during which additional tests, surveys were done that focused on increasing information from demographics undocumented in the past.    
 
 ```{r decade-by-decade}
 gender = crosstab(gss[gss$year > 1973 & gss$year != 1984,], 
@@ -122,10 +122,8 @@ gender = crosstab(gss[gss$year > 1973 & gss$year != 1984,],
 marascuillo_procedure(gender$table[, c(1,3)])
 ```
 
-Gender could be an explanatory variable.  More of an assessment is needed to determine whether exclusion of those years is warranted. 
+Gender could be an explanatory variable.  More of an assessment is needed to determine whether exclusion of those years is warranted and perform subsequent analyses. 
 
 ## References: 
 1. NIST: _Comparing multiple proportions: The Marascuillo procedure_,  
 http://www.itl.nist.gov/div898/handbook/prc/section4/prc474.htm
-
-

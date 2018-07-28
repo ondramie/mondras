@@ -12,7 +12,7 @@ tags: [R, Marascuillo]
 
 <div id="preface" class="section level2">
 <h2>Preface</h2>
-<p>In an attempting to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn’t used per se for determining whether a variable is explanatory or response. This data are from General Social Survey.</p>
+<p>In an attempting to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn’t used per se for determining whether a variable is explanatory or response. This data are from the General Social Survey.</p>
 </div>
 <div id="categorical-data-of-interest" class="section level2">
 <h2>Categorical Data of Interest</h2>
@@ -86,7 +86,7 @@ marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
 ## 8   0.030    0.020    70s-80s
 ## 9   0.024    0.020    70s-90s
 ## 10  0.006    0.018    80s-90s</code></pre>
-<p>The statistically significant differences are these pairwise comparisons: 80s and 00s; 70s and 80s; and 70s and 90s. The decade demarcation could afford some tweaking. Looking at year-by-year proportion differences, I see that the years 1972, 73, and 84, when compared to other years, are statistically different.</p>
+<p>The statistically significant differences are these pairwise comparisons: 80s and 00s; 70s and 80s; and 70s and 90s. The decade demarcation could afford some tweaking. Looking at year-by-year proportion differences, I observed that the years 1972, 73, and 84, when compared to other years, are statistically different.</p>
 <pre class="r"><code># list of year contigency tables 
 gender.yr = crosstab(gss, row.vars = &quot;year&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
 gender.prop.yr = marascuillo_procedure(gender.yr$table[, c(1,3)])
@@ -115,7 +115,7 @@ gender.prop.yr[gender.prop.yr$values &gt; gender.prop.yr$critical, ]</code></pre
 ## 63   0.060    0.056  1974-1984
 ## 251  0.054    0.052  1984-2008</code></pre>
 <p><strong>What if I were to elminate them?</strong></p>
-<p>Eliminating those years, I see that there are no pairwise decade-by-decade differences in proportions that are significant. The years of potential exclusion were years during which additional tests, surveys were done that focused on increasing information from demographics undocumented in the past.</p>
+<p>if I eliminate those years, then I see that there are no pairwise decade-by-decade differences in proportions that are significant. The years of potential exclusion were years during which additional tests, surveys were done that focused on increasing information from demographics undocumented in the past.</p>
 <pre class="r"><code>gender = crosstab(gss[gss$year &gt; 1973 &amp; gss$year != 1984,], 
                   row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
 marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
@@ -130,7 +130,7 @@ marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
 ## 8   0.016    0.022    70s-80s
 ## 9   0.013    0.022    70s-90s
 ## 10  0.003    0.019    80s-90s</code></pre>
-<p>Gender could be an explanatory variable. More of an assessment is needed to determine whether exclusion of those years is warranted.</p>
+<p>Gender could be an explanatory variable. More of an assessment is needed to determine whether exclusion of those years is warranted and perform subsequent analyses.</p>
 </div>
 <div id="references" class="section level2">
 <h2>References:</h2>
