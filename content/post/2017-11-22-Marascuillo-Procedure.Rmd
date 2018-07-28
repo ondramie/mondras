@@ -9,7 +9,7 @@ tags: [R, Marascuillo]
 ---
 
 ## Preface
-In an attempting to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn't used per se for determining whether a variable is explanatory or response.  This data was taken from General Social Survey.     
+In an attempting to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn't used per se for determining whether a variable is explanatory or response.  This data are from General Social Survey.     
 
 ```{r set-options, echo=FALSE, cache=FALSE}
 options(width = 10000)
