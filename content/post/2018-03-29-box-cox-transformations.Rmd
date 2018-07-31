@@ -10,7 +10,7 @@ tags: [R, box-cox]
 
 ## Preface
 
-In general, data transformations seemed pretty arbitrary to me.  I would frequently log or square-root data to make the data follow a distribution.  A stickler for procedures, I often wondered, "is there a procedure for finding the best transformation?"  Well, luckily there is a procedure, and I have to thank two statiticians with similar sounding names who collaborated with each other - partially because they have similar sounding names. 
+In general, data transformations seemed pretty arbitrary to me.  I would frequently log or square-root data to make the data follow a distribution.  A stickler for procedures, I often wondered, "is there a procedure for finding the best transformation?"  Well, luckily there is a procedure, and I have to thank two statisticians with similar sounding names who collaborated with each other - partially because they have similar sounding names. 
 
 ## What is it? 
 
