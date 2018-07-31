@@ -82,7 +82,9 @@ gender = crosstab(gss, row.vars = "decade", col.vars = "sex", type='f')
 
 marascuillo_procedure = function(p){
   n = length(p[, c(1)]) - 1
+  print(n)
   prop = p[,1][1:n]/p[,2][1:n]
+  print(prop)
   names = row.names(p)
   N = length(prop)
   value = critical.range = compare= c()

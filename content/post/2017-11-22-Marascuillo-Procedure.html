@@ -12,7 +12,7 @@ tags: [R, Marascuillo]
 
 <div id="preface" class="section level2">
 <h2>Preface</h2>
-<p>In an attempting to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn’t used per se for determining whether a variable is explanatory or response. This data are from the General Social Survey.</p>
+<p>In an attempt to determine which variables are explanatory or response for a data set of all categorical variables, I came across the marascuilo procedure, which isn’t used per se for determining whether a variable is explanatory or response, but it can tell me if a statistical significant difference exists between a pair. The data are from the General Social Survey.</p>
 </div>
 <div id="categorical-data-of-interest" class="section level2">
 <h2>Categorical Data of Interest</h2>
@@ -54,7 +54,9 @@ tags: [R, Marascuillo]
 
 marascuillo_procedure = function(p){
   n = length(p[, c(1)]) - 1
+  print(n)
   prop = p[,1][1:n]/p[,2][1:n]
+  print(prop)
   names = row.names(p)
   N = length(prop)
   value = critical.range = compare= c()
@@ -75,6 +77,9 @@ marascuillo_procedure = function(p){
 }  
 
 marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
+<pre><code>## [1] 5
+##       00s       10s       70s       80s       90s 
+## 0.4468413 0.4422598 0.4575667 0.4278492 0.4334871</code></pre>
 <pre><code>##    values critical comparison
 ## 1   0.005    0.027    00s-10s
 ## 2   0.011    0.019    00s-70s
@@ -89,8 +94,11 @@ marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
 <p>The statistically significant differences are these pairwise comparisons: 80s and 00s; 70s and 80s; and 70s and 90s. The decade demarcation could afford some tweaking. Looking at year-by-year proportion differences, I observed that the years 1972, 73, and 84, when compared to other years, are statistically different.</p>
 <pre class="r"><code># list of year contigency tables 
 gender.yr = crosstab(gss, row.vars = &quot;year&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
-gender.prop.yr = marascuillo_procedure(gender.yr$table[, c(1,3)])
-gender.prop.yr[gender.prop.yr$values &gt; gender.prop.yr$critical, ]</code></pre>
+gender.prop.yr = marascuillo_procedure(gender.yr$table[, c(1,3)])</code></pre>
+<pre><code>## [1] 29
+##      1972      1973      1974      1975      1976      1977      1978      1980      1982      1983      1984      1985      1986      1987      1988      1989      1990      1991      1993      1994      1996      1998      2000      2002      2004      2006      2008      2010      2012 
+## 0.5003100 0.4660904 0.4656334 0.4496644 0.4462975 0.4529412 0.4197128 0.4366485 0.4188172 0.4315197 0.4059742 0.4485007 0.4224490 0.4277075 0.4307900 0.4294079 0.4402332 0.4192485 0.4265255 0.4311497 0.4424931 0.4350282 0.4362797 0.4441230 0.4551920 0.4441242 0.4597133 0.4359100 0.4488349</code></pre>
+<pre class="r"><code>gender.prop.yr[gender.prop.yr$values &gt; gender.prop.yr$critical, ]</code></pre>
 <pre><code>##     values critical comparison
 ## 6    0.081    0.055  1972-1978
 ## 7    0.064    0.055  1972-1980
@@ -119,6 +127,9 @@ gender.prop.yr[gender.prop.yr$values &gt; gender.prop.yr$critical, ]</code></pre
 <pre class="r"><code>gender = crosstab(gss[gss$year &gt; 1973 &amp; gss$year != 1984,], 
                   row.vars = &quot;decade&quot;, col.vars = &quot;sex&quot;, type=&#39;f&#39;)
 marascuillo_procedure(gender$table[, c(1,3)])</code></pre>
+<pre><code>## [1] 5
+##       00s       10s       70s       80s       90s 
+## 0.4468413 0.4422598 0.4467153 0.4303728 0.4334871</code></pre>
 <pre><code>##    values critical comparison
 ## 1   0.005    0.027    00s-10s
 ## 2   0.000    0.022    00s-70s
